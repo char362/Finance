@@ -1,29 +1,53 @@
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 class BillTracker {
-    constructor() {
-        this.bills = JSON.parse(localStorage.getItem('myBills')) || [];
-        this.initialBalance = parseFloat(localStorage.getItem('myBalance')) || 0;
-
-        // Calendar State
-        this.cleanedDays = JSON.parse(localStorage.getItem('myCleanedDays')) || []; // Format: "YYYY-MM-DD"
+    constructor(userId) {
+        this.userId = userId;
+        this.bills = [];
+        this.initialBalance = 0;
+        this.cleanedDays = [];
+        this.savings = [];
         this.currentDate = new Date();
-
-        // Savings State
-        this.savings = JSON.parse(localStorage.getItem('mySavings')) || [];
 
         this.initElements();
         this.initEvents();
         this.initNavigation();
 
-        this.currentEditId = null; // Track editing state
+        this.currentEditId = null;
 
         // Date Display
         const dateEl = document.getElementById('current-date');
         const now = new Date();
         if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+        this.loadData();
+    }
+
+    async loadData() {
+        try {
+            const docRef = doc(db, "users", this.userId);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                this.bills = data.myBills || [];
+                this.initialBalance = data.myBalance || 0;
+                this.cleanedDays = data.myCleanedDays || [];
+                this.savings = data.mySavings || [];
+            } else {
+                console.log("No existing data, starting fresh.");
+            }
+        } catch (error) {
+            console.error("Error loading data:", error);
+            // Fallback or Alert?
+        }
+
         this.render();
         this.renderCalendar();
         this.renderSavings();
+        if (this.balanceInput) this.balanceInput.value = this.initialBalance;
     }
 
     initElements() {
@@ -135,9 +159,9 @@ class BillTracker {
 
         // Reset All Data
         if (this.resetAllBtn) {
-            this.resetAllBtn.addEventListener('click', () => {
+            this.resetAllBtn.addEventListener('click', async () => {
                 if (confirm('WARNING: Are you sure you want to delete ALL data? This cannot be undone.')) {
-                    localStorage.clear();
+                    await deleteDoc(doc(db, "users", this.userId));
                     location.reload();
                 }
             });
@@ -181,10 +205,10 @@ class BillTracker {
 
     exportData() {
         const data = {
-            myBills: localStorage.getItem('myBills'),
-            myBalance: localStorage.getItem('myBalance'),
-            myCleanedDays: localStorage.getItem('myCleanedDays'),
-            mySavings: localStorage.getItem('mySavings'),
+            myBills: this.bills,
+            myBalance: this.initialBalance,
+            myCleanedDays: this.cleanedDays,
+            mySavings: this.savings,
             timestamp: new Date().toISOString()
         };
 
@@ -205,23 +229,27 @@ class BillTracker {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
 
-                // Validate basic structure
                 if (data.myBills || data.myBalance || data.mySavings) {
-                    if (data.myBills) localStorage.setItem('myBills', data.myBills);
-                    if (data.myBalance) localStorage.setItem('myBalance', data.myBalance);
-                    if (data.myCleanedDays) localStorage.setItem('myCleanedDays', data.myCleanedDays);
-                    if (data.mySavings) localStorage.setItem('mySavings', data.mySavings);
+                    // Handle both stringified (old backup) and object (new backup) formats
+                    const parseIfNeeded = (val) => typeof val === 'string' ? JSON.parse(val) : val;
 
+                    this.bills = parseIfNeeded(data.myBills) || [];
+                    this.initialBalance = parseFloat(data.myBalance) || 0;
+                    this.cleanedDays = parseIfNeeded(data.myCleanedDays) || [];
+                    this.savings = parseIfNeeded(data.mySavings) || [];
+
+                    await this.save();
                     alert('Data restored successfully! The page will now reload.');
                     location.reload();
                 } else {
                     alert('Invalid backup file. Missing data.');
                 }
             } catch (err) {
+                console.error(err);
                 alert('Error reading backup file: ' + err.message);
             }
         };
@@ -351,11 +379,19 @@ class BillTracker {
         }
     }
 
-    save() {
-        localStorage.setItem('myBills', JSON.stringify(this.bills));
-        localStorage.setItem('myBalance', this.initialBalance);
-        localStorage.setItem('myCleanedDays', JSON.stringify(this.cleanedDays));
-        localStorage.setItem('mySavings', JSON.stringify(this.savings));
+    async save() {
+        try {
+            const data = {
+                myBills: this.bills,
+                myBalance: this.initialBalance,
+                myCleanedDays: this.cleanedDays,
+                mySavings: this.savings
+            };
+            await setDoc(doc(db, "users", this.userId), data);
+        } catch (e) {
+            console.error("Error saving data: ", e);
+            alert("Error saving data check console.");
+        }
     }
 
     render() {
@@ -763,8 +799,107 @@ class BillTracker {
             this.renderSavings();
         }
     }
+
+    initAuth() {
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                signOut(auth).then(() => {
+                    // Sign-out successful.
+                    location.reload(); // Simple reload to clear state/reset view
+                }).catch((error) => {
+                    alert('Error logging out: ' + error.message);
+                });
+            });
+        }
+    }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new BillTracker();
+// --- Auth Handling ---
+
+const authView = document.getElementById('auth-view');
+const authForm = document.getElementById('auth-form');
+const authEmail = document.getElementById('auth-email');
+const authPass = document.getElementById('auth-password');
+const authError = document.getElementById('auth-error');
+const authTitle = document.getElementById('auth-title');
+const authSubtitle = document.getElementById('auth-subtitle');
+const authSwitchBtn = document.getElementById('auth-switch-btn');
+const authSwitchText = document.getElementById('auth-switch-text');
+
+let isLoginMode = true;
+
+// Toggle Login/Signup
+if (authSwitchBtn) {
+    authSwitchBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        isLoginMode = !isLoginMode;
+        if (isLoginMode) {
+            authTitle.textContent = 'Welcome Back';
+            authSubtitle.textContent = 'Sign in to continue';
+            authForm.querySelector('button').textContent = 'Sign In';
+            authSwitchText.textContent = "Don't have an account? ";
+            authSwitchBtn.textContent = 'Sign Up';
+        } else {
+            authTitle.textContent = 'Create Account';
+            authSubtitle.textContent = 'Join to track your finance';
+            authForm.querySelector('button').textContent = 'Sign Up';
+            authSwitchText.textContent = "Already have an account? ";
+            authSwitchBtn.textContent = 'Sign In';
+        }
+        authError.style.display = 'none';
+        authForm.reset();
+    });
+}
+
+// Handle Form Submit
+if (authForm) {
+    authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = authEmail.value;
+        const password = authPass.value;
+        authError.style.display = 'none';
+
+        if (isLoginMode) {
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed in 
+                    console.log('Logged in:', userCredential.user.email);
+                })
+                .catch((error) => {
+                    authError.textContent = 'Login Error: ' + error.message.replace('Firebase: ', '');
+                    authError.style.display = 'block';
+                });
+        } else {
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed up 
+                    console.log('Signed up:', userCredential.user.email);
+                })
+                .catch((error) => {
+                    authError.textContent = 'Signup Error: ' + error.message.replace('Firebase: ', '');
+                    authError.style.display = 'block';
+                });
+        }
+    });
+}
+
+// Auth State Monitor
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // User is signed in
+        document.body.classList.remove('auth-mode');
+        if (authView) authView.style.display = 'none';
+
+        // Initialize App if not already
+        if (!window.app) {
+            window.app = new BillTracker(user.uid);
+            window.app.initAuth(); // Initialize logout listener
+        }
+    } else {
+        // User is signed out
+        document.body.classList.add('auth-mode');
+        if (authView) authView.style.display = 'flex';
+        window.app = null; // Clear app instance
+    }
 });
