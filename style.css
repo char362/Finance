@@ -532,3 +532,53 @@ input {
 .hidden {
     display: none !important;
 }
+
+/* Mobile Navigation */
+.mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bg-sidebar);
+    border-top: 1px solid var(--border);
+    display: none;
+    /* Hidden on Desktop */
+    justify-content: space-around;
+    padding: 12px 0;
+    z-index: 50;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.mobile-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 11px;
+    gap: 4px;
+}
+
+.mobile-nav a.active {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.mobile-nav .icon {
+    font-size: 20px;
+}
+
+@media (max-width: 768px) {
+    .mobile-nav {
+        display: flex;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .main-content {
+        padding-bottom: 80px;
+        /* Space for bottom nav */
+    }
+}

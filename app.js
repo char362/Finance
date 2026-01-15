@@ -236,6 +236,14 @@ class BillTracker {
             calendar: document.getElementById('nav-calendar')
         };
 
+        // Mobile Links
+        const mobileLinks = {
+            dashboard: document.getElementById('mobile-nav-dashboard'),
+            wallet: document.getElementById('mobile-nav-wallet'),
+            settings: document.getElementById('mobile-nav-settings'),
+            calendar: document.getElementById('mobile-nav-calendar')
+        };
+
         const views = {
             dashboard: document.getElementById('view-dashboard'),
             wallet: document.getElementById('view-wallet'),
@@ -244,9 +252,13 @@ class BillTracker {
         };
 
         const switchView = (target) => {
-            // Update Nav
+            // Update Desktop Nav
             Object.values(navLinks).forEach(el => { if (el) el.classList.remove('active'); });
             if (navLinks[target]) navLinks[target].classList.add('active');
+
+            // Update Mobile Nav
+            Object.values(mobileLinks).forEach(el => { if (el) el.classList.remove('active'); });
+            if (mobileLinks[target]) mobileLinks[target].classList.add('active');
 
             // Update View
             Object.values(views).forEach(el => { if (el) el.classList.add('hidden'); });
@@ -256,10 +268,21 @@ class BillTracker {
             localStorage.setItem('activeView', target);
         };
 
+        // Desktop Events
         if (navLinks.dashboard) navLinks.dashboard.addEventListener('click', (e) => { e.preventDefault(); switchView('dashboard'); });
         if (navLinks.wallet) navLinks.wallet.addEventListener('click', (e) => { e.preventDefault(); switchView('wallet'); });
         if (navLinks.settings) navLinks.settings.addEventListener('click', (e) => { e.preventDefault(); switchView('settings'); });
         if (navLinks.calendar) navLinks.calendar.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView('calendar');
+            this.renderCalendar();
+        });
+
+        // Mobile Events (Same logic)
+        if (mobileLinks.dashboard) mobileLinks.dashboard.addEventListener('click', (e) => { e.preventDefault(); switchView('dashboard'); });
+        if (mobileLinks.wallet) mobileLinks.wallet.addEventListener('click', (e) => { e.preventDefault(); switchView('wallet'); });
+        if (mobileLinks.settings) mobileLinks.settings.addEventListener('click', (e) => { e.preventDefault(); switchView('settings'); });
+        if (mobileLinks.calendar) mobileLinks.calendar.addEventListener('click', (e) => {
             e.preventDefault();
             switchView('calendar');
             this.renderCalendar();
