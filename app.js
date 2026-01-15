@@ -765,4 +765,6 @@ class BillTracker {
     }
 }
 
-window.app = new BillTracker();
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new BillTracker();
+});

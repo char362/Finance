@@ -38,7 +38,14 @@
             <!-- Dashboard View -->
             <div id="view-dashboard">
                 <header>
-                    <h1>Dashboard</h1>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <!-- Mobile Logo -->
+                        <div class="logo mobile-only" style="display:none;">
+                            <div class="logo-icon" style="width:24px; height:24px;"></div>
+                            <span style="font-weight:700; font-size:16px;">Finance</span>
+                        </div>
+                        <h1 class="desktop-only">Dashboard</h1>
+                    </div>
                     <div class="date-display" id="current-date">October 2025</div>
                 </header>
 

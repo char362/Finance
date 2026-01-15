@@ -577,8 +577,63 @@ input {
         display: none;
     }
 
-    .main-content {
-        padding-bottom: 80px;
-        /* Space for bottom nav */
+    /* Better Mobile List */
+    .transaction-item {
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        position: relative;
+    }
+
+    .t-name {
+        grid-column: 1;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .t-date {
+        grid-column: 1;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    /* Move amount to top right */
+    .t-amount {
+        grid-column: 2;
+        grid-row: 1;
+        text-align: right;
+        font-size: 15px;
+    }
+
+    /* Move status below amount */
+    .t-status {
+        grid-column: 2;
+        grid-row: 2;
+        text-align: right;
+        font-size: 11px;
+    }
+
+    /* Hide Edit/Delete on mobile list usually, or make smaller */
+    .icon-group {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--bg-card);
+        /* Cover content if open */
+        display: none;
+        /* Hide actions by default to clean UI, or click to show */
+    }
+
+    /* Show actions on row active/click? For now let's keep them visible but smaller */
+    .icon-group {
+        position: static;
+        display: flex;
+        grid-column: span 2;
+        justify-content: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        margin-top: 4px;
     }
 }
