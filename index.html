@@ -213,11 +213,21 @@
                         style="background:transparent; border:none; color:var(--danger); font-weight:600; cursor:pointer;">Logout</button>
                 </header>
                 <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border);">
+                        <div>
+                            <div style="font-weight:600;">Account</div>
+                            <div id="user-email-display" style="font-size:13px; color:var(--text-secondary);">Not logged in</div>
+                        </div>
+                    </div>
+
                     <h3 style="margin-bottom: 20px;">Preferences</h3>
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <span>Dark Mode</span>
-                        <div style="color: var(--success); font-weight:bold;">Enabled</div>
+                        <label class="switch">
+                            <input type="checkbox" id="dark-mode-toggle">
+                            <span class="slider"></span>
+                        </label>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span>Currency</span>
@@ -325,6 +335,10 @@
                     <label>Password</label>
                     <input type="password" id="auth-password" placeholder="••••••••" required>
                 </div>
+                
+                 <div style="text-align:right; margin-bottom:15px;">
+                    <a href="#" id="forgot-password-link" style="font-size:12px; color:var(--text-secondary); text-decoration:none;">Forgot Password?</a>
+                </div>
                 <!-- Error Message -->
                 <div id="auth-error" style="color:var(--danger); font-size:13px; margin-bottom:15px; display:none;">
                 </div>
@@ -335,6 +349,31 @@
             <div style="margin-top:20px; text-align:center; font-size:14px; color:var(--text-secondary);">
                 <span id="auth-switch-text">Don't have an account? </span>
                 <a href="#" id="auth-switch-btn" style="color:var(--text-primary); font-weight:600;">Sign Up</a>
+            </div>
+        </div>
+        </div>
+
+        <!-- Password Reset View (Hidden by default) -->
+        <div id="reset-password-view" class="auth-card hidden" style="display:none;">
+             <div class="logo" style="justify-content:center; margin-bottom:20px;">
+                <div class="logo-icon" style="width:40px; height:40px;"></div>
+                <h2 style="font-size:24px;">Finance</h2>
+            </div>
+
+            <h3 style="text-align:center;">Reset Password</h3>
+            <p style="color:var(--text-secondary); margin-bottom:20px; text-align:center; font-size:14px;">Enter your email to receive a password reset link.</p>
+
+            <form id="reset-password-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="reset-email" placeholder="name@example.com" required>
+                </div>
+                
+                <button type="submit" class="btn primary" style="width:100%;">Send Reset Link</button>
+            </form>
+
+            <div style="margin-top:20px; text-align:center;">
+                <button id="back-to-login-btn" class="btn secondary" style="width:100%;">Back to Login</button>
             </div>
         </div>
     </div>

@@ -1,6 +1,7 @@
 import { auth, db } from './firebase-config.js';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 
 class BillTracker {
     constructor(userId) {
@@ -22,7 +23,34 @@ class BillTracker {
         const now = new Date();
         if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+        // Dark Mode Init
+        this.initTheme();
+
         this.loadData();
+    }
+
+    initTheme() {
+        const toggle = document.getElementById('dark-mode-toggle');
+        const savedTheme = localStorage.getItem('theme');
+
+        // Apply saved or default
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            if (toggle) toggle.checked = true;
+        }
+
+        // Listener
+        if (toggle) {
+            toggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+        }
     }
 
     async loadData() {
@@ -815,19 +843,66 @@ class BillTracker {
     }
 }
 
-// --- Auth Handling ---
-
+// Auth Logic
 const authView = document.getElementById('auth-view');
 const authForm = document.getElementById('auth-form');
 const authEmail = document.getElementById('auth-email');
-const authPass = document.getElementById('auth-password');
-const authError = document.getElementById('auth-error');
+const authPassword = document.getElementById('auth-password');
 const authTitle = document.getElementById('auth-title');
 const authSubtitle = document.getElementById('auth-subtitle');
+const authButton = document.querySelector('#auth-form button');
 const authSwitchBtn = document.getElementById('auth-switch-btn');
 const authSwitchText = document.getElementById('auth-switch-text');
+const authError = document.getElementById('auth-error');
 
-let isLoginMode = true;
+// Password Recovery Elements
+const forgotPasswordLink = document.getElementById('forgot-password-link');
+const resetPasswordView = document.getElementById('reset-password-view');
+const resetPasswordForm = document.getElementById('reset-password-form');
+const resetEmailInput = document.getElementById('reset-email');
+const backToLoginBtn = document.getElementById('back-to-login-btn');
+const loginCard = document.querySelector('.auth-card:not(#reset-password-view)'); // Select the main login card
+
+let isLoginMode = true; // Renamed from isLoginMode
+
+// Forgot Password Flow
+if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (loginCard) loginCard.style.display = 'none';
+        if (resetPasswordView) {
+            resetPasswordView.style.display = 'block';
+            resetPasswordView.classList.remove('hidden');
+        }
+    });
+}
+
+if (backToLoginBtn) {
+    backToLoginBtn.addEventListener('click', () => {
+        if (resetPasswordView) {
+            resetPasswordView.style.display = 'none';
+            resetPasswordView.classList.add('hidden');
+        }
+        if (loginCard) loginCard.style.display = 'block';
+    });
+}
+
+if (resetPasswordForm) {
+    resetPasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = resetEmailInput.value;
+        if (email) {
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert(`Password reset link sent to ${email}`);
+                backToLoginBtn.click(); // Return to login
+            } catch (error) {
+                console.error(error);
+                alert('Error: ' + error.message);
+            }
+        }
+    });
+}
 
 // Toggle Login/Signup
 if (authSwitchBtn) {
@@ -836,7 +911,6 @@ if (authSwitchBtn) {
         isLoginMode = !isLoginMode;
         if (isLoginMode) {
             authTitle.textContent = 'Welcome Back';
-            authSubtitle.textContent = 'Sign in to continue';
             authForm.querySelector('button').textContent = 'Sign In';
             authSwitchText.textContent = "Don't have an account? ";
             authSwitchBtn.textContent = 'Sign Up';
@@ -857,7 +931,7 @@ if (authForm) {
     authForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const email = authEmail.value;
-        const password = authPass.value;
+        const password = authPassword.value;
         authError.style.display = 'none';
 
         if (isLoginMode) {
