@@ -621,10 +621,12 @@ h1 {
 
     #cleaning-log tr {
         display: grid;
-        grid-template-columns: 1fr auto auto;
-        /* Activity | Date | Edit */
-        gap: 10px;
-        align-items: start;
+        grid-template-columns: auto 1fr auto;
+        /* Edit | Activity | Date */
+        gap: 12px;
+        align-items: center;
+        align-items: center;
+        /* Center vertically */
         padding: 12px 0;
         border-bottom: 1px solid var(--border);
     }
@@ -636,24 +638,26 @@ h1 {
         width: auto !important;
     }
 
-    /* Activity Column */
-    #cleaning-log td:nth-child(1) {
-        grid-column: 1;
-        /* Left */
-    }
-
-    /* Date Column */
+    /* Date Column (Moved to Left) */
     #cleaning-log td:nth-child(2) {
-        grid-column: 2;
-        /* Right */
+        grid-column: 1;
+        text-align: left;
         white-space: nowrap;
         font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        /* Ensure visibility */
     }
 
-    /* Edit Button Column */
+    /* Activity Column (Middle) */
+    #cleaning-log td:nth-child(1) {
+        grid-column: 2;
+    }
+
+    /* Edit Button Column (Moved to Right) */
     #cleaning-log td:nth-child(3) {
         grid-column: 3;
-        /* Far Right */
+        text-align: right;
     }
 }
 
