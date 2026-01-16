@@ -61,10 +61,22 @@ class BillTracker {
                 const data = docSnap.data();
                 this.bills = data.myBills || [];
                 this.initialBalance = data.myBalance || 0;
-                this.cleanedDays = data.myCleanedDays || [];
+
+                // MIGRATION: Handle old Array format for Cleaned Days
+                if (Array.isArray(data.myCleanedDays)) {
+                    // Convert ['2025-01-01'] to {'2025-01-01': 'Cleaned'}
+                    this.cleanedDays = data.myCleanedDays.reduce((acc, date) => {
+                        acc[date] = 'Cleaned';
+                        return acc;
+                    }, {});
+                } else {
+                    this.cleanedDays = data.myCleanedDays || {};
+                }
+
                 this.savings = data.mySavings || [];
             } else {
                 console.log("No existing data, starting fresh.");
+                this.cleanedDays = {}; // Default to object
             }
         } catch (error) {
             console.error("Error loading data:", error);
@@ -117,12 +129,21 @@ class BillTracker {
         this.monthYearEl = document.getElementById('calendar-month-year');
         this.prevMonthBtn = document.getElementById('prev-month');
         this.nextMonthBtn = document.getElementById('next-month');
+        this.cleaningLog = document.getElementById('cleaning-log');
+
+        // Note Modal Elements
+        this.noteModal = document.getElementById('note-modal');
+        this.noteDateTitle = document.getElementById('note-date-title');
+        this.noteInput = document.getElementById('note-input');
+        this.noteSaveBtn = document.getElementById('note-save-btn');
+        this.noteDeleteBtn = document.getElementById('note-delete-btn');
+        this.noteCancelBtn = document.getElementById('note-cancel-btn');
 
         if (this.balanceInput) this.balanceInput.value = this.initialBalance;
     }
 
     initEvents() {
-        // Modal Controls
+        // Modal Controls (Bill)
         if (this.addBtn) {
             this.addBtn.addEventListener('click', () => {
                 this.currentEditId = null; // Reset edit state
@@ -215,73 +236,42 @@ class BillTracker {
             });
         }
 
-        // Backup Controls
-        const exportBtn = document.getElementById('export-btn');
-        const importBtn = document.getElementById('import-btn');
-        const importFile = document.getElementById('import-file');
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.exportData());
+        // Note Modal Controls
+        if (this.noteCancelBtn) {
+            this.noteCancelBtn.addEventListener('click', () => {
+                this.noteModal.classList.add('hidden');
+            });
         }
 
-        if (importBtn && importFile) {
-            importBtn.addEventListener('click', () => importFile.click());
-            importFile.addEventListener('change', (e) => this.importData(e));
-        }
-    }
-
-    exportData() {
-        const data = {
-            myBills: this.bills,
-            myBalance: this.initialBalance,
-            myCleanedDays: this.cleanedDays,
-            mySavings: this.savings,
-            timestamp: new Date().toISOString()
-        };
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `finance-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-
-                if (data.myBills || data.myBalance || data.mySavings) {
-                    // Handle both stringified (old backup) and object (new backup) formats
-                    const parseIfNeeded = (val) => typeof val === 'string' ? JSON.parse(val) : val;
-
-                    this.bills = parseIfNeeded(data.myBills) || [];
-                    this.initialBalance = parseFloat(data.myBalance) || 0;
-                    this.cleanedDays = parseIfNeeded(data.myCleanedDays) || [];
-                    this.savings = parseIfNeeded(data.mySavings) || [];
-
-                    await this.save();
-                    alert('Data restored successfully! The page will now reload.');
-                    location.reload();
-                } else {
-                    alert('Invalid backup file. Missing data.');
+        if (this.noteSaveBtn) {
+            this.noteSaveBtn.addEventListener('click', () => {
+                if (this.currentNoteDate) {
+                    const text = this.noteInput.value.trim();
+                    if (text) {
+                        this.cleanedDays[this.currentNoteDate] = text;
+                    } else {
+                        delete this.cleanedDays[this.currentNoteDate];
+                    }
+                    this.save();
+                    this.renderCalendar();
+                    this.noteModal.classList.add('hidden');
                 }
-            } catch (err) {
-                console.error(err);
-                alert('Error reading backup file: ' + err.message);
-            }
-        };
-        reader.readAsText(file);
+            });
+        }
+
+        if (this.noteDeleteBtn) {
+            this.noteDeleteBtn.addEventListener('click', () => {
+                if (this.currentNoteDate && confirm('Clear notes for this day?')) {
+                    delete this.cleanedDays[this.currentNoteDate];
+                    this.save();
+                    this.renderCalendar();
+                    this.noteModal.classList.add('hidden');
+                }
+            });
+        }
     }
+
+
 
     initNavigation() {
         const navLinks = {
@@ -411,7 +401,7 @@ class BillTracker {
             const data = {
                 myBills: this.bills,
                 myBalance: this.initialBalance,
-                myCleanedDays: this.cleanedDays,
+                myCleanedDays: this.cleanedDays, // Now saving object
                 mySavings: this.savings
             };
             await db.collection("users").doc(this.userId).set(data);
@@ -425,9 +415,13 @@ class BillTracker {
         // Sort by Due Date
         this.bills.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-        // Calculate Totals
+        // Calculate Totals (Projected)
         const totalIncome = this.bills.filter(b => b.type === 'income').reduce((sum, b) => sum + b.amount, 0);
         const totalExpenses = this.bills.filter(b => b.type !== 'income').reduce((sum, b) => sum + b.amount, 0);
+
+        // Calculate Realized (Actual) for Balance
+        const paidIncome = this.bills.filter(b => b.type === 'income' && b.paid).reduce((sum, b) => sum + b.amount, 0);
+        const paidExpenses = this.bills.filter(b => b.type !== 'income' && b.paid).reduce((sum, b) => sum + b.amount, 0);
 
         // Expense Breakdown
         const totalPaidVal = this.bills.filter(b => b.type !== 'income' && b.paid).reduce((sum, b) => sum + b.amount, 0);
@@ -453,19 +447,19 @@ class BillTracker {
         }
 
         if (this.totalRemainingEl) {
-            // "Pending" -> "Disposable Balance" (Income - Expenses)
-            const balance = totalIncome - totalExpenses;
+            // "Net Balance" -> Realized Net (Paid Income - Paid Expenses)
+            const balance = paidIncome - paidExpenses;
             this.totalRemainingEl.textContent = `$${balance.toFixed(2)}`;
             this.totalRemainingEl.style.color = balance >= 0 ? 'var(--success)' : 'var(--danger)';
 
             const label = this.totalRemainingEl.parentElement.querySelector('.label');
-            if (label) label.textContent = 'Net Balance';
+            if (label) label.textContent = 'Realized Net';
         }
 
-        // Update Card Balance (Initial + Net Balance -> Projected View)
+        // Update Card Balance (Initial + Realized Income - Realized Expenses)
         if (this.cardBalanceEl) {
-            // Calculate Projected Balance (Initial + All Income - All Expenses)
-            const currentBalance = this.initialBalance + totalIncome - totalExpenses;
+            // Calculate Realized Balance (Cash on Hand)
+            const currentBalance = this.initialBalance + paidIncome - paidExpenses;
             this.cardBalanceEl.textContent = `$${currentBalance.toFixed(2)}`;
         }
 
@@ -661,35 +655,125 @@ class BillTracker {
         // Render Days
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const isCleaned = this.cleanedDays.includes(dateStr);
+            const hasRecord = !!this.cleanedDays[dateStr];
+            const note = this.cleanedDays[dateStr] || '';
 
             const dayDiv = document.createElement('div');
-            dayDiv.textContent = d;
+
+            // Layout Structure
+            dayDiv.innerHTML = `<span style="font-weight:bold;">${d}</span>`;
+
+            if (hasRecord) {
+                dayDiv.title = note;
+                // Add visible note text
+                const noteSpan = document.createElement('div');
+                noteSpan.textContent = note;
+                // Changed: Larger font, full opacity, better line height
+                noteSpan.style.cssText = 'font-size:11px; white-space:pre-wrap; max-width:100%; font-weight:500; margin-top:4px; text-align:left; width:100%; line-height:1.2;';
+                dayDiv.appendChild(noteSpan);
+            }
+
             dayDiv.style.cssText = `
-                height: 40px;
+                min-height: 80px; /* Start as a large square-ish shape */
+                padding: 8px; /* More breathing room */
                 display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
+                flex-direction: column;
+                align-items: center; 
+                justify-content: flex-start;
+                border-radius: 12px;
                 cursor: pointer;
-                background: ${isCleaned ? 'var(--success)' : 'transparent'};
-                color: ${isCleaned ? 'white' : 'var(--text-primary)'};
-                border: 1px solid ${isCleaned ? 'var(--success)' : 'var(--bg-card-hover)'};
+                background: ${hasRecord ? 'var(--success)' : 'var(--bg-card)'}; 
+                color: ${hasRecord ? 'white' : 'var(--text-primary)'};
+                border: 1px solid ${hasRecord ? 'var(--success)' : 'var(--border)'};
                 transition: all 0.2s;
+                font-size: 14px;
+                font-weight: bold;
+                /* aspect-ratio: 1; Removed to allow growth */
+                height: 100%; /* Stretch to fill grid row */
             `;
 
             dayDiv.addEventListener('click', () => {
-                if (this.cleanedDays.includes(dateStr)) {
-                    this.cleanedDays = this.cleanedDays.filter(day => day !== dateStr);
-                } else {
-                    this.cleanedDays.push(dateStr);
-                }
-                this.save();
-                this.renderCalendar(); // Re-render to update UI
+                this.currentNoteDate = dateStr;
+                this.noteDateTitle.textContent = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                this.noteInput.value = this.cleanedDays[dateStr] || '';
+                this.noteModal.classList.remove('hidden');
+                this.noteInput.focus();
             });
 
             this.calendarGrid.appendChild(dayDiv);
         }
+
+        this.renderCleaningLog();
+    }
+
+    renderCleaningLog() {
+        if (!this.cleaningLog) return;
+        this.cleaningLog.innerHTML = '';
+
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let hasEntries = false;
+
+        // Create Table Structure
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%; border-collapse:collapse; font-size:14px;';
+
+        // Header
+        table.innerHTML = `
+            <thead>
+                <tr style="border-bottom:2px solid var(--border);">
+                    <th style="text-align:left; padding:12px 8px; color:var(--text-secondary);">Activity / Chores</th>
+                    <th style="text-align:right; padding:12px 8px; color:var(--text-secondary); width:120px;">Date</th>
+                    <th style="width:50px;"></th>
+                </tr>
+            </thead>
+            <tbody id="cleaning-table-body"></tbody>
+        `;
+        const tbody = table.querySelector('tbody');
+
+        // Iterate Forwards (Chronological Order)
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            if (this.cleanedDays[dateStr]) {
+                hasEntries = true;
+                const note = this.cleanedDays[dateStr];
+
+                const tr = document.createElement('tr');
+                tr.style.cssText = 'border-bottom:1px solid var(--border);';
+
+                const dateObj = new Date(dateStr + 'T12:00:00');
+                const dateDisplay = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+
+                // Format bullets nicely
+                const formattedNote = note.split('\n').map(line => `<div>• ${line.replace(/^- /, '')}</div>`).join('');
+
+                tr.innerHTML = `
+                    <td style="padding:12px 8px; vertical-align:top; line-height:1.5;">${formattedNote}</td>
+                    <td style="padding:12px 8px; color:var(--success); font-weight:600; vertical-align:top; text-align:right;">${dateDisplay}</td>
+                    <td style="padding:12px 8px; vertical-align:top; text-align:right;">
+                        <button onclick="app.editNote('${dateStr}')" style="background:transparent; border:none; cursor:pointer; font-size:16px;" title="Edit">✎</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        if (hasEntries) {
+            this.cleaningLog.appendChild(table);
+        } else {
+            this.cleaningLog.innerHTML = '<div style="color:var(--text-secondary); font-size:13px; text-align:center; padding:20px;">No cleaning records for this month.</div>';
+        }
+    }
+
+    // Proxy for global access if needed, or strictly use class state
+    editNote(dateStr) {
+        this.currentNoteDate = dateStr;
+        this.noteDateTitle.textContent = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        this.noteInput.value = this.cleanedDays[dateStr] || '';
+        this.noteModal.classList.remove('hidden');
+        this.noteInput.focus();
     }
 
     getOrdinal(n) {

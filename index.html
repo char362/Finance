@@ -193,14 +193,20 @@
 
                     <div style="margin-top:20px; font-size:12px; display:flex; gap:20px; color:var(--text-secondary);">
                         <div style="display:flex; align-items:center; gap:5px;">
-                            <div style="width:10px; height:10px; background:var(--success); border-radius:50%;"></div>
+                            <div style="width:12px; height:12px; background:var(--success); border-radius:3px;"></div>
                             Cleaned
                         </div>
                         <div style="display:flex; align-items:center; gap:5px;">
                             <div
-                                style="width:10px; height:10px; background:var(--bg-sidebar); border:1px solid var(--border); border-radius:50%;">
+                                style="width:12px; height:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:3px;">
                             </div> Not Done
                         </div>
+                    </div>
+
+                    <!-- Monthly Log Summary (Added) -->
+                    <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:20px;">
+                        <h3 style="margin-bottom:10px;">Monthly Activity Log</h3>
+                        <div id="cleaning-log"></div>
                     </div>
                 </div>
             </div>
@@ -235,19 +241,6 @@
                         <span>Currency</span>
                         <span style="color: var(--text-secondary);">USD ($)</span>
                     </div>
-
-                    <h3 style="margin: 20px 0 10px;">Data Backup</h3>
-                    <div style="display:grid; gap:10px;">
-                        <button id="export-btn" class="btn primary" style="width:100%;">↓ Export Data (Save to
-                            File)</button>
-                        <button id="import-btn" class="btn secondary" style="width:100%;">↑ Import Data (Restore from
-                            File)</button>
-                        <input type="file" id="import-file" accept=".json" style="display:none;">
-                    </div>
-                    <p style="margin-top:10px; font-size:12px; color:var(--text-secondary); line-height:1.4;">
-                        * <strong>Export</strong>: Defends against clearing history. Saves your data as a file.<br>
-                        * <strong>Import</strong>: Restores your data from that file.
-                    </p>
 
                     <h3 style="margin: 20px 0 10px; color:var(--danger);">Danger Zone</h3>
                     <div style="display:grid; gap:10px;">
@@ -294,6 +287,21 @@
                     <button type="submit" class="btn primary">Save Bill</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Note Modal (Cleaning) -->
+    <div id="note-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="note-date-title">Date Details</h2>
+            <textarea id="note-input" rows="6" placeholder="- Vacuum living room&#10;- Mop kitchen&#10;- Dust shelves"
+                style="width:100%; background:var(--bg-sidebar); border:1px solid var(--border); color:var(--text-primary); border-radius:10px; padding:12px; font-family:inherit; resize:vertical;"></textarea>
+            <div class="modal-actions">
+                <button id="note-cancel-btn" class="btn secondary">Cancel</button>
+                <button id="note-delete-btn" class="btn" style="background:var(--danger); color:white;">Clear
+                    Day</button>
+                <button id="note-save-btn" class="btn primary">Save Notes</button>
+            </div>
         </div>
     </div>
 

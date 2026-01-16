@@ -25,7 +25,8 @@ body.dark-mode {
     --text-primary: #f9fafb;
     --text-secondary: #9ca3af;
     --border: #374151;
-    --accent: #10b981; /* Green accent in dark mode? Or white? Keeping green for now */
+    --accent: #10b981;
+    /* Green accent in dark mode? Or white? Keeping green for now */
 }
 
 * {
@@ -291,6 +292,112 @@ h1 {
     text-transform: uppercase;
 }
 
+/* Calendar View Polish */
+#calendar-grid {
+    background: var(--bg-card);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    margin-bottom: 30px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px !important;
+    /* Override inline if needed */
+}
+
+#calendar-month-year {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+.btn-icon {
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Day Names Header */
+.calendar-days-header {
+    margin-bottom: 16px !important;
+    padding: 0 10px;
+}
+
+.calendar-days-header div {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Chore Chart / Table Polish */
+#cleaning-log {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+}
+
+#cleaning-log table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#cleaning-log th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 0 16px 0;
+    border-bottom: 2px solid var(--border);
+}
+
+#cleaning-log td {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+#cleaning-log tr:last-child td {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* List Bullets in Table */
+#cleaning-log td div {
+    margin-bottom: 4px;
+}
+
+/* Calendar Notes Styles (Enhanced from app.js inline) */
+.calendar-note {
+    font-family: 'Inter', sans-serif;
+}
+
 /* Transactions List */
 .section-header {
     display: flex;
@@ -329,6 +436,17 @@ h1 {
     margin-bottom: 8px;
     border: 1px solid transparent;
     transition: all 0.2s;
+    cursor: pointer;
+    /* Critical for iOS click events */
+    user-select: none;
+    /* Prevents text selection on rapid tapping */
+    -webkit-tap-highlight-color: transparent;
+    /* Removes default highlight */
+}
+
+.transaction-item:active {
+    transform: scale(0.98);
+    background: var(--bg-card-hover);
 }
 
 .transaction-item:hover {
@@ -458,7 +576,38 @@ h1 {
         display: none;
     }
 
-    /* Could add hamburger menu for mobile later */
+    /* Mobile Calendar Adjustments */
+    #calendar-grid {
+        padding: 10px;
+        gap: 4px !important;
+    }
+
+    .calendar-days-header {
+        font-size: 0.7rem;
+    }
+
+    /* Hard override for JS inline styles on mobile */
+    #calendar-grid>div {
+        min-height: 60px !important;
+        padding: 2px !important;
+        border-radius: 8px !important;
+    }
+
+    #calendar-grid>div>div {
+        font-size: 9px !important;
+        /* Smaller note text */
+    }
+
+    /* Mobile Table Scroll */
+    #cleaning-log {
+        padding: 15px;
+        overflow-x: auto;
+    }
+
+    #cleaning-log table {
+        min-width: 400px;
+        /* Force scroll if too narrow */
+    }
 }
 
 /* Modal */
@@ -627,16 +776,9 @@ input {
     }
 
     /* Hide Edit/Delete on mobile list usually, or make smaller */
-    .icon-group {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--bg-card);
-        /* Cover content if open */
-        display: none;
-        /* Hide actions by default to clean UI, or click to show */
-    }
+    /* Edit/Delete Icons for Mobile */
+    /* Remove 'display: none' block that was here */
+
 
     /* Show actions on row active/click? For now let's keep them visible but smaller */
     .icon-group {
@@ -683,46 +825,46 @@ body.auth-mode .mobile-nav {
 
 /* Toggle Switch */
 .switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 24px;
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
 }
 
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--bg-card-hover);
-  transition: .4s;
-  border-radius: 24px;
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-card-hover);
+    transition: .4s;
+    border-radius: 24px;
 }
 
 .slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
 }
 
-input:checked + .slider {
-  background-color: var(--success);
+input:checked+.slider {
+    background-color: var(--success);
 }
 
-input:checked + .slider:before {
-  transform: translateX(24px);
+input:checked+.slider:before {
+    transform: translateX(24px);
 }
