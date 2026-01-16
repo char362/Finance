@@ -1,6 +1,5 @@
-import { auth, db } from './firebase-config.js';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// Imports removed for Compat Mode
+// Global 'auth' and 'db' are initialized in firebase-config.js
 
 
 class BillTracker {
@@ -55,10 +54,10 @@ class BillTracker {
 
     async loadData() {
         try {
-            const docRef = doc(db, "users", this.userId);
-            const docSnap = await getDoc(docRef);
+            const docRef = db.collection("users").doc(this.userId);
+            const docSnap = await docRef.get();
 
-            if (docSnap.exists()) {
+            if (docSnap.exists) {
                 const data = docSnap.data();
                 this.bills = data.myBills || [];
                 this.initialBalance = data.myBalance || 0;
@@ -189,7 +188,7 @@ class BillTracker {
         if (this.resetAllBtn) {
             this.resetAllBtn.addEventListener('click', async () => {
                 if (confirm('WARNING: Are you sure you want to delete ALL data? This cannot be undone.')) {
-                    await deleteDoc(doc(db, "users", this.userId));
+                    await db.collection("users").doc(this.userId).delete();
                     location.reload();
                 }
             });
@@ -415,7 +414,7 @@ class BillTracker {
                 myCleanedDays: this.cleanedDays,
                 mySavings: this.savings
             };
-            await setDoc(doc(db, "users", this.userId), data);
+            await db.collection("users").doc(this.userId).set(data);
         } catch (e) {
             console.error("Error saving data: ", e);
             alert("Error saving data check console.");
@@ -832,7 +831,7 @@ class BillTracker {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                signOut(auth).then(() => {
+                auth.signOut().then(() => {
                     // Sign-out successful.
                     location.reload(); // Simple reload to clear state/reset view
                 }).catch((error) => {
@@ -843,137 +842,166 @@ class BillTracker {
     }
 }
 
-// Auth Logic
-const authView = document.getElementById('auth-view');
-const authForm = document.getElementById('auth-form');
-const authEmail = document.getElementById('auth-email');
-const authPassword = document.getElementById('auth-password');
-const authTitle = document.getElementById('auth-title');
-const authSubtitle = document.getElementById('auth-subtitle');
-const authButton = document.querySelector('#auth-form button');
-const authSwitchBtn = document.getElementById('auth-switch-btn');
-const authSwitchText = document.getElementById('auth-switch-text');
-const authError = document.getElementById('auth-error');
 
-// Password Recovery Elements
-const forgotPasswordLink = document.getElementById('forgot-password-link');
-const resetPasswordView = document.getElementById('reset-password-view');
-const resetPasswordForm = document.getElementById('reset-password-form');
-const resetEmailInput = document.getElementById('reset-email');
-const backToLoginBtn = document.getElementById('back-to-login-btn');
-const loginCard = document.querySelector('.auth-card:not(#reset-password-view)'); // Select the main login card
 
-let isLoginMode = true; // Renamed from isLoginMode
+// Main Initialization Function
+function initApp() {
+    console.log('Initializing App...');
 
-// Forgot Password Flow
-if (forgotPasswordLink) {
-    forgotPasswordLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (loginCard) loginCard.style.display = 'none';
-        if (resetPasswordView) {
+    // Auth Logic Elements
+    const authView = document.getElementById('auth-view');
+    const authForm = document.getElementById('auth-form');
+    const authEmail = document.getElementById('auth-email');
+    const authPassword = document.getElementById('auth-password');
+    const authTitle = document.getElementById('auth-title');
+    const authSubtitle = document.getElementById('auth-subtitle');
+    const authSwitchBtn = document.getElementById('auth-switch-btn');
+    const authSwitchText = document.getElementById('auth-switch-text');
+    const authError = document.getElementById('auth-error');
+
+    // Password Recovery Elements
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    const resetPasswordView = document.getElementById('reset-password-view');
+    const resetPasswordForm = document.getElementById('reset-password-form');
+    const resetEmailInput = document.getElementById('reset-email');
+    const backToLoginBtn = document.getElementById('back-to-login-btn');
+    const loginCard = document.getElementById('login-view');
+
+    let isLoginMode = true;
+
+    // Debug Element Presence
+    console.log('Elements Found:', {
+        forgotPasswordLink: !!forgotPasswordLink,
+        loginCard: !!loginCard,
+        resetPasswordView: !!resetPasswordView,
+        authSwitchBtn: !!authSwitchBtn
+    });
+
+    // Forgot Password Flow
+    if (forgotPasswordLink && loginCard && resetPasswordView) {
+        forgotPasswordLink.onclick = (e) => { // Using onclick for better compatibility
+            e.preventDefault();
+            console.log('Action: Forgot Password');
+            loginCard.style.display = 'none';
             resetPasswordView.style.display = 'block';
             resetPasswordView.classList.remove('hidden');
-        }
-    });
-}
+        };
+    }
 
-if (backToLoginBtn) {
-    backToLoginBtn.addEventListener('click', () => {
-        if (resetPasswordView) {
+    if (backToLoginBtn && loginCard && resetPasswordView) {
+        backToLoginBtn.onclick = (e) => {
+            e.preventDefault();
+            console.log('Action: Back to Login');
             resetPasswordView.style.display = 'none';
             resetPasswordView.classList.add('hidden');
-        }
-        if (loginCard) loginCard.style.display = 'block';
-    });
-}
-
-if (resetPasswordForm) {
-    resetPasswordForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = resetEmailInput.value;
-        if (email) {
-            try {
-                await sendPasswordResetEmail(auth, email);
-                alert(`Password reset link sent to ${email}`);
-                backToLoginBtn.click(); // Return to login
-            } catch (error) {
-                console.error(error);
-                alert('Error: ' + error.message);
-            }
-        }
-    });
-}
-
-// Toggle Login/Signup
-if (authSwitchBtn) {
-    authSwitchBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        isLoginMode = !isLoginMode;
-        if (isLoginMode) {
-            authTitle.textContent = 'Welcome Back';
-            authForm.querySelector('button').textContent = 'Sign In';
-            authSwitchText.textContent = "Don't have an account? ";
-            authSwitchBtn.textContent = 'Sign Up';
-        } else {
-            authTitle.textContent = 'Create Account';
-            authSubtitle.textContent = 'Join to track your finance';
-            authForm.querySelector('button').textContent = 'Sign Up';
-            authSwitchText.textContent = "Already have an account? ";
-            authSwitchBtn.textContent = 'Sign In';
-        }
-        authError.style.display = 'none';
-        authForm.reset();
-    });
-}
-
-// Handle Form Submit
-if (authForm) {
-    authForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = authEmail.value;
-        const password = authPassword.value;
-        authError.style.display = 'none';
-
-        if (isLoginMode) {
-            signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    // Signed in 
-                    console.log('Logged in:', userCredential.user.email);
-                })
-                .catch((error) => {
-                    authError.textContent = 'Login Error: ' + error.message.replace('Firebase: ', '');
-                    authError.style.display = 'block';
-                });
-        } else {
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    // Signed up 
-                    console.log('Signed up:', userCredential.user.email);
-                })
-                .catch((error) => {
-                    authError.textContent = 'Signup Error: ' + error.message.replace('Firebase: ', '');
-                    authError.style.display = 'block';
-                });
-        }
-    });
-}
-
-// Auth State Monitor
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // User is signed in
-        document.body.classList.remove('auth-mode');
-        if (authView) authView.style.display = 'none';
-
-        // Initialize App if not already
-        if (!window.app) {
-            window.app = new BillTracker(user.uid);
-            window.app.initAuth(); // Initialize logout listener
-        }
-    } else {
-        // User is signed out
-        document.body.classList.add('auth-mode');
-        if (authView) authView.style.display = 'flex';
-        window.app = null; // Clear app instance
+            loginCard.style.display = 'block';
+        };
     }
-});
+
+    if (resetPasswordForm) {
+        resetPasswordForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = resetEmailInput.value;
+            if (email) {
+                try {
+                    await auth.sendPasswordResetEmail(email);
+                    alert(`Password reset link sent to ${email}`);
+                    backToLoginBtn.click();
+                } catch (error) {
+                    console.error(error);
+                    alert('Error: ' + error.message);
+                }
+            }
+        };
+    }
+
+    // Toggle Login/Signup
+    if (authSwitchBtn) {
+        authSwitchBtn.onclick = (e) => {
+            e.preventDefault();
+            console.log('Action: Switch Auth Mode');
+            isLoginMode = !isLoginMode;
+            if (isLoginMode) {
+                authTitle.textContent = 'Welcome Back';
+                authForm.querySelector('button').textContent = 'Sign In';
+                authSwitchText.textContent = "Don't have an account? ";
+                authSwitchBtn.textContent = 'Sign Up';
+            } else {
+                authTitle.textContent = 'Create Account';
+                authSubtitle.textContent = 'Join to track your finance';
+                authForm.querySelector('button').textContent = 'Sign Up';
+                authSwitchText.textContent = "Already have an account? ";
+                authSwitchBtn.textContent = 'Sign In';
+            }
+            if (authError) authError.style.display = 'none';
+            if (authForm) authForm.reset();
+        };
+    }
+
+    // Handle Main Auth Form Submit
+    if (authForm) {
+        authForm.onsubmit = (e) => {
+            e.preventDefault();
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (authError) authError.style.display = 'none';
+
+            if (isLoginMode) {
+                auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('Logged in:', userCredential.user.email);
+                    })
+                    .catch((error) => {
+                        if (authError) {
+                            authError.textContent = 'Login Error: ' + error.message;
+                            authError.style.display = 'block';
+                        }
+                        alert('Login Failed: ' + error.message);
+                    });
+            } else {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('Signed up:', userCredential.user.email);
+                    })
+                    .catch((error) => {
+                        if (authError) {
+                            authError.textContent = 'Signup Error: ' + error.message;
+                            authError.style.display = 'block';
+                        }
+                        alert('Signup Failed: ' + error.message);
+                    });
+            }
+        };
+    }
+
+    // Auth Monitor
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            document.body.classList.remove('auth-mode');
+            if (authView) authView.style.display = 'none';
+
+            if (!window.app) {
+                window.app = new BillTracker(user.uid);
+                window.app.initAuth();
+            }
+
+            const emailDisplay = document.getElementById('user-email-display');
+            if (emailDisplay) emailDisplay.textContent = user.email;
+        } else {
+            document.body.classList.add('auth-mode');
+            if (authView) authView.style.display = 'flex';
+            window.app = null;
+        }
+    });
+}
+
+// Robust Initialization Check
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
+console.log('App Script Loaded - Waiting for Init');
+
+
