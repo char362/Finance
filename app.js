@@ -477,28 +477,35 @@ class BillTracker {
                 this.billList.innerHTML = '<div style="padding:20px; color:var(--text-secondary); text-align:center;">No transactions yet.</div>';
             } else {
                 this.bills.forEach(bill => {
-                    // Handle both old (day number) and new (YYYY-MM-DD) data
+                    // Handle both old and new data formats
                     let dateDisplay;
                     if (bill.dueDate && bill.dueDate.includes && bill.dueDate.includes('-')) {
-                        // ISO String
                         const [y, m, d] = bill.dueDate.split('-');
                         const dateObj = new Date(y, m - 1, d);
                         dateDisplay = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     } else {
-                        // Legacy Day Number
                         dateDisplay = bill.dueDay ? `Day ${bill.dueDay}` : 'No Date';
                     }
 
                     const div = document.createElement('div');
                     div.className = 'transaction-item';
-                    div.onclick = () => this.togglePaid(bill.id); // Click row to toggle
+                    div.onclick = () => this.togglePaid(bill.id);
 
+                    // Safe Construction for Name (Prevents XSS)
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 't-name';
+                    if (bill.name.includes('Transfer to')) {
+                        const icon = document.createElement('span');
+                        icon.style.cssText = 'color:#3b82f6; margin-right:5px;';
+                        icon.textContent = '⇄ ';
+                        nameDiv.appendChild(icon);
+                    }
+                    nameDiv.appendChild(document.createTextNode(bill.name));
+
+                    // Use innerHTML for static structure, inject safe name later
                     div.innerHTML = `
                         <div class="check-wrapper">
-                            <div class="t-name">
-                                ${bill.name.includes('Transfer to') ? '<span style="color:#3b82f6; margin-right:5px;">⇄</span>' : ''}
-                                ${bill.name}
-                            </div>
+                            <!-- Name Injected Here -->
                         </div>
                         <div class="t-date">${dateDisplay}</div>
                         <div class="t-amount" style="color: ${bill.type === 'income' ? 'var(--success)' : ''}">
@@ -516,20 +523,23 @@ class BillTracker {
                         </div>
                     `;
 
+                    // Inject Safe Name
+                    div.querySelector('.check-wrapper').appendChild(nameDiv);
+
                     // Attach event listeners
                     const editBtn = div.querySelector('.edit-icon');
                     const deleteBtn = div.querySelector('.delete-icon');
 
                     if (editBtn) {
                         editBtn.addEventListener('click', (e) => {
-                            e.stopPropagation(); // Stop row click
+                            e.stopPropagation();
                             this.startEdit(bill.id);
                         });
                     }
 
                     if (deleteBtn) {
                         deleteBtn.addEventListener('click', (e) => {
-                            e.stopPropagation(); // Stop row click
+                            e.stopPropagation();
                             this.deleteBill(bill.id);
                         });
                     }
@@ -549,7 +559,7 @@ class BillTracker {
 
             this.inputName.value = bill.name;
             this.inputAmount.value = bill.amount;
-            this.inputDue.value = bill.dueDate;
+            this.inputDue = bill.dueDate;
             if (this.inputType) this.inputType.value = bill.type || 'expense';
 
             // Switch to update mode UI
@@ -564,31 +574,31 @@ class BillTracker {
         if (!this.chartContainer) return;
         this.chartContainer.innerHTML = '';
 
-        // --- Helper: Group Data ---
         const groupData = (items) => {
             const grouped = {};
             items.forEach(bill => {
                 const name = bill.name.trim();
+                // Note: Keys in objects are strings, but we need to be careful when rendering keys back out
                 if (!grouped[name]) grouped[name] = 0;
                 grouped[name] += bill.amount;
             });
             return Object.keys(grouped)
                 .map(name => ({ name, amount: grouped[name] }))
                 .sort((a, b) => b.amount - a.amount)
-                .slice(0, 4); // Show top 4 of each to fit space
+                .slice(0, 4);
         };
 
         const incomeData = groupData(this.bills.filter(b => b.type === 'income'));
         const expenseData = groupData(this.bills.filter(b => b.type !== 'income'));
 
-        // Find max for scale (normalize both to same scale or independent? independent is better for visibility)
         const maxIncome = Math.max(...incomeData.map(d => d.amount), 1);
         const maxExpense = Math.max(...expenseData.map(d => d.amount), 1);
 
-        // --- Render Helper ---
         const createSection = (title, data, maxVal, colorVar, isEmpty) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'chart-section-half';
+
+            // XSS Fix: Build label safely or ensure title is static (Title is static here)
             wrapper.innerHTML = `<div class="chart-label-small">${title}</div><div class="bars-row"></div>`;
             const row = wrapper.querySelector('.bars-row');
 
@@ -601,10 +611,20 @@ class BillTracker {
                 const height = (d.amount / maxVal) * 80 + 10;
                 const barDiv = document.createElement('div');
                 barDiv.className = 'bar-wrapper';
-                barDiv.innerHTML = `
-                    <div class="bar" style="height:${height}%; background:${colorVar}"></div>
-                    <span class="bar-label">${d.name.substring(0, 3)}</span>
-                `;
+
+                // Safe Label Construction
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = `${height}%`;
+                bar.style.background = colorVar;
+
+                const label = document.createElement('span');
+                label.className = 'bar-label';
+                label.textContent = d.name.substring(0, 3); // SAFE: using textContent
+
+                barDiv.appendChild(bar);
+                barDiv.appendChild(label);
+
                 row.appendChild(barDiv);
             });
             return wrapper;
@@ -694,8 +714,14 @@ class BillTracker {
                 const div = document.createElement('div');
                 div.className = 'savings-item';
                 div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-card-hover); margin-bottom:8px; border-radius:8px;';
+
+                // Safe Name Injection
+                const nameDiv = document.createElement('div');
+                nameDiv.style.fontWeight = '600';
+                nameDiv.textContent = acct.name; // SAFE
+
                 div.innerHTML = `
-                    <div style="font-weight:600;">${acct.name}</div>
+                    <!-- Name Name Injected Here -->
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:var(--success); margin-right:8px;">$${acct.amount.toFixed(2)}</span>
                         <button class="deposit-savings" title="Deposit Cash" style="background:var(--success); border:none; color:white; border-radius:4px; width:30px; height:30px; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:16px;">+</button>
@@ -704,6 +730,9 @@ class BillTracker {
                         <button class="delete-savings" title="Delete Account" style="background:var(--danger); border:none; color:white; border-radius:4px; width:30px; height:30px; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:16px;">×</button>
                     </div>
                 `;
+
+                // Prepend the safe name div
+                div.insertBefore(nameDiv, div.firstChild);
 
                 div.querySelector('.deposit-savings').addEventListener('click', () => this.depositToSavings(index));
                 div.querySelector('.transfer-savings').addEventListener('click', () => this.transferFromChecking(index));
